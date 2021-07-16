@@ -1,15 +1,12 @@
-import { makeStyles } from '@material-ui/core/styles'
+import { Breadcrumb, BreadcrumbElement, Menu } from '@gnosis.pm/safe-react-components'
 import React, { ReactElement, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { Redirect, Route, Switch } from 'react-router-dom'
+import { Redirect, Route, Switch, useRouteMatch } from 'react-router-dom'
 
-import ReceiveModal from 'src/components/App/ReceiveModal'
-import { styles } from './style'
-
-import Modal from 'src/components/Modal'
 import Col from 'src/components/layout/Col'
+import Modal from 'src/components/Modal'
+import ReceiveModal from 'src/components/App/ReceiveModal'
 
-import Row from 'src/components/layout/Row'
 import { SAFELIST_ADDRESS } from 'src/routes/routes'
 import SendModal from 'src/routes/safe/components/Balances/SendModal'
 import { CurrencyDropdown } from 'src/routes/safe/components/CurrencyDropdown'
@@ -38,11 +35,14 @@ const INITIAL_STATE = {
 export const COINS_LOCATION_REGEX = /\/balances\/?$/
 export const COLLECTIBLES_LOCATION_REGEX = /\/balances\/collectibles$/
 
-const useStyles = makeStyles(styles)
-
 const Balances = (): ReactElement => {
-  const classes = useStyles()
   const [state, setState] = useState(INITIAL_STATE)
+  const matchSafeWithAction = useRouteMatch({
+    path: `${SAFELIST_ADDRESS}/:safeAddress/:safeAction/:safeSubaction?`,
+  }) as {
+    url: string
+    params: Record<string, string>
+  }
 
   const { address, featuresEnabled, name: safeName } = useSelector(currentSafeWithNames)
 
@@ -85,12 +85,31 @@ const Balances = (): ReactElement => {
     }))
   }
 
-  const { controls, tokenControls } = classes
   const { erc721Enabled, sendFunds, showReceive } = state
+
+  let balancesSection
+  switch (matchSafeWithAction.url) {
+    // FIXME should use global routes enum once PR #2536 is merged
+    case `${SAFELIST_ADDRESS}/${address}/balances`:
+      balancesSection = 'Coins'
+      break
+    // FIXME should use global routes enum once PR #2536 is merged
+    case `${SAFELIST_ADDRESS}/${address}/balances/collectibles`:
+      balancesSection = 'Collectibles'
+      break
+    default:
+      balancesSection = ''
+  }
 
   return (
     <>
-      <Row align="center" className={controls}>
+      <Menu>
+        <Col start="sm" sm={6} xs={12}>
+          <Breadcrumb>
+            <BreadcrumbElement iconType="assets" text="ASSETS" color="primary" />
+            <BreadcrumbElement text={balancesSection} color="placeHolder" />
+          </Breadcrumb>
+        </Col>
         <Switch>
           <Route
             path={`${SAFELIST_ADDRESS}/${address}/balances/collectibles`}
@@ -102,16 +121,14 @@ const Balances = (): ReactElement => {
           <Route
             path={`${SAFELIST_ADDRESS}/${address}/balances`}
             exact
-            render={() => {
-              return (
-                <Col className={tokenControls} end="sm" xs={12}>
-                  <CurrencyDropdown />
-                </Col>
-              )
-            }}
+            render={() => (
+              <Col end="sm" sm={6} xs={12}>
+                <CurrencyDropdown />
+              </Col>
+            )}
           />
         </Switch>
-      </Row>
+      </Menu>
       <Switch>
         <Route
           path={`${SAFELIST_ADDRESS}/${address}/balances/collectibles`}
